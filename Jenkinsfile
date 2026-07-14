@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         IMAGE_NAME = "deepakramamoorthytesh/flask-demo"
+        CONTAINER_NAME = "flask-app"
     }
 
     stages {
@@ -46,19 +47,21 @@ pipeline {
                 }
             }
         }
+
+        stage('Deploy Container') {
+            steps {
+                bat '''
+                docker stop %CONTAINER_NAME% || exit /b 0
+                docker rm %CONTAINER_NAME% || exit /b 0
+                docker run -d --name %CONTAINER_NAME% -p 5000:5000 %IMAGE_NAME%
+                '''
+            }
+        }
     }
 
     post {
-        always {
-            echo 'Pipeline Completed'
-        }
-
         success {
-            echo 'Build Successful'
-        }
-
-        failure {
-            echo 'Build Failed'
+            echo 'Deployment Successful!'
         }
     }
 }
