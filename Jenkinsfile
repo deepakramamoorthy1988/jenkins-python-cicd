@@ -1,34 +1,55 @@
 pipeline {
     agent any
 
+    tools {
+        sonarQube 'SonarScanner'
+    }
+
     environment {
         IMAGE_NAME = "deepakramamoorthytesh/flask-demo"
-        CONTAINER_NAME = "flask-app"
     }
 
     stages {
 
-        stage('Checkout') {
+        stage('Checkout SCM') {
             steps {
                 checkout scm
             }
         }
 
+        stage('Checkout') {
+            steps {
+                echo "Repository Checked Out"
+            }
+        }
+
         stage('Install Dependencies') {
             steps {
-                bat 'python -m pip install -r requirements.txt'
+                bat 'pip install -r requirements.txt'
             }
         }
 
         stage('Run Tests') {
             steps {
-                bat 'python -m pytest'
+                bat 'pytest'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    bat '''
+                    sonar-scanner ^
+                    -Dsonar.projectKey=jenkins-python-cicd ^
+                    -Dsonar.sources=. ^
+                    '''
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                bat 'docker build -t %IMAGE_NAME% .'
+                bat "docker build -t %IMAGE_NAME% ."
             }
         }
 
@@ -39,11 +60,10 @@ pipeline {
                     usernameVariable: 'DOCKER_USER',
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
-
-                    bat '''
+                    bat """
                     docker login -u %DOCKER_USER% -p %DOCKER_PASS%
                     docker push %IMAGE_NAME%
-                    '''
+                    """
                 }
             }
         }
@@ -51,9 +71,9 @@ pipeline {
         stage('Deploy Container') {
             steps {
                 bat '''
-                docker stop %CONTAINER_NAME% || exit /b 0
-                docker rm %CONTAINER_NAME% || exit /b 0
-                docker run -d --name %CONTAINER_NAME% -p 5000:5000 %IMAGE_NAME%
+                docker stop flask-container || exit 0
+                docker rm flask-container || exit 0
+                docker run -d --name flask-container -p 5000:5000 %IMAGE_NAME%
                 '''
             }
         }
@@ -61,7 +81,11 @@ pipeline {
 
     post {
         success {
-            echo 'Deployment Successful!'
+            echo 'Pipeline Completed Successfully!'
+        }
+
+        failure {
+            echo 'Pipeline Failed!'
         }
     }
 }
