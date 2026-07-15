@@ -94,19 +94,26 @@ pipeline {
     }
 
     post {
+    always {
+        emailext(
+            subject: "Jenkins Build - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+            body: """
+Hello,
 
-        success {
-            echo 'Pipeline Completed Successfully!'
-        }
+Job Name : ${env.JOB_NAME}
+Build Number : ${env.BUILD_NUMBER}
+Build Status : ${currentBuild.currentResult}
 
-        failure {
-            echo 'Pipeline Failed!'
-        }
+Build URL:
+${env.BUILD_URL}
 
-        always {
-            cleanWs()
-        }
+Regards,
+Jenkins CI/CD
+""",
+            to: "deepakramamoorthy1988@gmail.com"
+        )
 
+        cleanWs()
+        echo "Pipeline Completed Successfully!"
     }
-
 }
