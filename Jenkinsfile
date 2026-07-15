@@ -1,10 +1,6 @@
 pipeline {
     agent any
 
-    tools {
-        sonarRunner 'SonarScanner'
-    }
-
     environment {
         IMAGE_NAME = "deepakramamoorthytesh/flask-demo"
     }
@@ -37,12 +33,23 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarQube') {
-                    bat '''
-                    sonar-scanner ^
-                    -Dsonar.projectKey=jenkins-python-cicd ^
-                    -Dsonar.sources=. ^
-                    '''
+                script {
+
+                    // Get SonarScanner installation path from Jenkins
+                    def scannerHome = tool 'SonarScanner'
+
+                    withSonarQubeEnv('SonarQube') {
+
+                        bat """
+                        "${scannerHome}\\bin\\sonar-scanner.bat" ^
+                        -Dsonar.projectKey=jenkins-python-cicd ^
+                        -Dsonar.projectName=jenkins-python-cicd ^
+                        -Dsonar.sources=. ^
+                        -Dsonar.python.version=3 ^
+                        -Dsonar.sourceEncoding=UTF-8
+                        """
+
+                    }
                 }
             }
         }
@@ -55,31 +62,39 @@ pipeline {
 
         stage('Push Docker Image') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+
                     bat """
                     docker login -u %DOCKER_USER% -p %DOCKER_PASS%
                     docker push %IMAGE_NAME%
                     """
+
                 }
             }
         }
 
         stage('Deploy Container') {
             steps {
+
                 bat '''
                 docker stop flask-container || exit 0
                 docker rm flask-container || exit 0
                 docker run -d --name flask-container -p 5000:5000 %IMAGE_NAME%
                 '''
+
             }
         }
+
     }
 
     post {
+
         success {
             echo 'Pipeline Completed Successfully!'
         }
@@ -87,5 +102,11 @@ pipeline {
         failure {
             echo 'Pipeline Failed!'
         }
+
+        always {
+            cleanWs()
+        }
+
     }
+
 }
