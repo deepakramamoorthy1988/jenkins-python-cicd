@@ -112,7 +112,7 @@ ${env.BUILD_URL}
 Regards,
 Jenkins CI/CD
 """,
-            to: "deepakramamoorthy1988@gmail.com"
+    
         )
 
         cleanWs()
